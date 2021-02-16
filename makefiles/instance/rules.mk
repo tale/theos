@@ -386,11 +386,10 @@ endif
 endif
 else ifeq ($(THEOS_CURRENT_ARCH),)
 
-ARCH_FILES_TO_LINK := $(addsuffix /$(1),$(addprefix $(THEOS_OBJ_DIR)/,$(TARGET_ARCHS)))
-# It's critical that this always be run because otherwise if there are changes to
-# files listed in the makedeps (*.Td) but this target just depends on __USER_FILES,
-# Make won't reproduce the target
-$$(THEOS_OBJ_DIR)/%/$(1): FORCE
+# TARGET_ARCHS has archs in the format `arch[:schema]...`. This turns that into `[schema/]arch...`
+_THEOS_ARCH_DIRS := $(foreach d,$(TARGET_ARCHS),$(if $(word 2,$(subst :, ,$(d))),$(word 2,$(subst :, ,$(d)))/)$(word 1,$(subst :, ,$(d))))
+ARCH_FILES_TO_LINK := $$(addsuffix /$(1),$$(addprefix $$(THEOS_OBJ_DIR)/,$$(_THEOS_ARCH_DIRS)))
+$$(THEOS_OBJ_DIR)/%/$(1): $(__ALL_FILES)
 	@mkdir -p $(THEOS_OBJ_DIR)/$$*
 	$(ECHO_MAKE)$(MAKE) -f $(_THEOS_PROJECT_MAKEFILE_NAME) --no-print-directory --no-keep-going \
 		internal-$(_THEOS_CURRENT_TYPE)-$(_THEOS_CURRENT_OPERATION) \
@@ -398,7 +397,8 @@ $$(THEOS_OBJ_DIR)/%/$(1): FORCE
 		THEOS_CURRENT_INSTANCE="$(THEOS_CURRENT_INSTANCE)" \
 		_THEOS_CURRENT_OPERATION="$(_THEOS_CURRENT_OPERATION)" \
 		THEOS_BUILD_DIR="$(THEOS_BUILD_DIR)" \
-		THEOS_CURRENT_ARCH="$$*"
+		THEOS_CURRENT_ARCH="$$(notdir $$*)" \
+		THEOS_ARCH_SCHEMA="$$(subst .,,$$(subst /,,$$(dir $$*)))"
 
 ifneq ($$(_THEOS_CODESIGN_COMMANDLINE),)
 .INTERMEDIATE: $$(THEOS_OBJ_DIR)/$(1).$(_THEOS_OUT_FILE_TAG).unsigned
@@ -411,7 +411,7 @@ endif
 ifeq ($$(_THEOS_CURRENT_TYPE),subproject)
 	@echo "$$(_THEOS_INTERNAL_LDFLAGS)" > $$(THEOS_OBJ_DIR)/$$(THEOS_CURRENT_INSTANCE).ldflags
 endif
-	$(ECHO_MERGING)$(ECHO_UNBUFFERED)$(TARGET_LIPO) $(foreach ARCH,$(TARGET_ARCHS),-arch $(ARCH) $(THEOS_OBJ_DIR)/$(ARCH)/$(1)) -create -output "$$@"$(ECHO_END)
+	$(ECHO_MERGING)$(ECHO_UNBUFFERED)$(TARGET_LIPO) $$(foreach ARCH,$$(_THEOS_ARCH_DIRS),-arch $$(notdir $$(ARCH)) $$(THEOS_OBJ_DIR)/$$(ARCH)/$(1)) -create -output "$$@"$(ECHO_END)
 
 else
 $$(THEOS_OBJ_DIR)/$(1): $$(OBJ_FILES_TO_LINK)
@@ -456,8 +456,9 @@ endif
 else ifeq ($(THEOS_CURRENT_ARCH),)
 ifeq ($(_THEOS_LIBRARY_TYPE),static)
 
-ARCH_FILES_TO_LINK := $(addsuffix /$(1),$(addprefix $(THEOS_OBJ_DIR)/,$(TARGET_ARCHS)))
-$$(THEOS_OBJ_DIR)/%/$(1): FORCE
+_THEOS_ARCH_DIRS := $(foreach d,$(TARGET_ARCHS),$(if $(word 2,$(subst :, ,$(d))),$(word 2,$(subst :, ,$(d)))/)$(word 1,$(subst :, ,$(d))))
+ARCH_FILES_TO_LINK := $$(addsuffix /$(1),$$(addprefix $$(THEOS_OBJ_DIR)/,$$(_THEOS_ARCH_DIRS)))
+$$(THEOS_OBJ_DIR)/%/$(1): $(__ALL_FILES)
 	@mkdir -p $(THEOS_OBJ_DIR)/$$*
 	$(ECHO_MAKE)$(MAKE) -f $(_THEOS_PROJECT_MAKEFILE_NAME) --no-print-directory --no-keep-going \
 		internal-$(_THEOS_CURRENT_TYPE)-$(_THEOS_CURRENT_OPERATION) \
@@ -465,14 +466,15 @@ $$(THEOS_OBJ_DIR)/%/$(1): FORCE
 		THEOS_CURRENT_INSTANCE="$(THEOS_CURRENT_INSTANCE)" \
 		_THEOS_CURRENT_OPERATION="$(_THEOS_CURRENT_OPERATION)" \
 		THEOS_BUILD_DIR="$(THEOS_BUILD_DIR)" \
-		THEOS_CURRENT_ARCH="$$*"
+		THEOS_CURRENT_ARCH="$$(notdir $$*)" \
+		THEOS_ARCH_SCHEMA="$$(subst .,,$$(subst /,,$$(dir $$*)))"
 
 endif
 $(THEOS_OBJ_DIR)/$(1): $$(ARCH_FILES_TO_LINK)
 ifeq ($$(_THEOS_CURRENT_TYPE),subproject)
 	@echo "$$(_THEOS_INTERNAL_LDFLAGS)" > $$(THEOS_OBJ_DIR)/$$(THEOS_CURRENT_INSTANCE).ldflags
 endif
-	$(ECHO_MERGING)$(ECHO_UNBUFFERED)$(TARGET_LIPO) $(foreach ARCH,$(TARGET_ARCHS),-arch $(ARCH) $(THEOS_OBJ_DIR)/$(ARCH)/$(1)) -create -output "$$@"$(ECHO_END)
+	$(ECHO_MERGING)$(ECHO_UNBUFFERED)$(TARGET_LIPO) $$(foreach ARCH,$$(_THEOS_ARCH_DIRS),-arch $$(notdir $$(ARCH)) $$(THEOS_OBJ_DIR)/$$(ARCH)/$(1)) -create -output "$$@"$(ECHO_END)
 
 else
 $$(THEOS_OBJ_DIR)/$(1): $$(OBJ_FILES_TO_LINK)
