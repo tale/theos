@@ -44,12 +44,13 @@ endif
 endif
 
 # __invocation returns the command-line invocation for the tool specified as its argument.
-ifneq ($(PREFIX),)
+_THEOS_TARGET_PREFIX := $(or $(call __schema_var_all,,PREFIX),$(PREFIX))
+ifneq ($(_THEOS_TARGET_PREFIX),)
 	# Linux, Cygwin
-	__invocation = $(PREFIX)$(1)
+	__invocation = $(_THEOS_TARGET_PREFIX)$(1)
 else ifeq ($(_THEOS_PLATFORM_HAS_XCODE),$(_THEOS_TRUE))
 	# macOS
-	__invocation = $(shell xcrun -sdk $(_THEOS_TARGET_PLATFORM_NAME) -f $(1) 2>/dev/null)
+	__invocation = $(shell DEVELOPER_DIR=$(THEOS_PLATFORM_SDK_ROOT) xcrun -sdk $(_THEOS_TARGET_PLATFORM_NAME) -f $(1) 2>/dev/null)
 else
 	# iOS
 	__invocation = $(1)
@@ -84,6 +85,10 @@ TARGET_SWIFTC ?= $(call __target_simplify,TARGET_SWIFTC,$(call __invocation_swif
 
 TARGET_SWIFT_SUPPORT_BIN ?= $(THEOS_VENDOR_SWIFT_SUPPORT_PATH)/.theos_build/release
 TARGET_ORION_BIN ?= $(THEOS_VENDOR_ORION_PATH)/.theos_build/release
+
+# note: we could slightly optimize invocation calculations by exporting them but
+# that would disallow overriding particular tools for particular arch schemas
+# and so on
 
 TARGET_STRIP_FLAGS ?= -x
 
